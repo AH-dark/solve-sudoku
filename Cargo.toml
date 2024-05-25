@@ -1,0 +1,14 @@
+[package]
+name = "solve-sudoku"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+[[bin]]
+name = "solve-sudoku"
+path = "src/main.rs"
+
+[lib]
+name = "solve_sudoku"
+path = "src/lib.rs"
