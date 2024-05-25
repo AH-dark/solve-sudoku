@@ -1,9 +1,10 @@
 use std::io;
 use std::io::Write;
+
 use solve_sudoku::solve_sudoku;
 
 fn main() {
-    let mut board:Vec<Vec<char>> = Vec::new();
+    let mut board: Vec<Vec<char>> = Vec::new();
 
     // input
     for i in 0..9 {
