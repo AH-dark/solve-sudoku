@@ -26,6 +26,8 @@ fn main() {
 
     solve_sudoku(&mut board);
 
+    // output
+    println!();
     for row in board {
         for cell in row {
             print!("{} ", cell);
