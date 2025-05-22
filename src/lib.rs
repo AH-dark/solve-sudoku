@@ -13,7 +13,12 @@ const SUBGRID_SIZE: usize = 3;
 /// # Returns
 ///
 /// A boolean value indicating whether the character is valid.
-pub fn is_valid(board: &Vec<Vec<char>>, row: usize, col: usize, c: char) -> bool {
+pub fn is_valid(
+    board: &[&[char]],
+    row: usize,
+    col: usize,
+    c: char,
+) -> bool {
     for i in 0..9 {
         if board[row][i] == c || board[i][col] == c || board[row / 3 * 3 + i / 3][col / 3 * 3 + i % 3] == c {
             return false;
@@ -31,25 +36,27 @@ pub fn is_valid(board: &Vec<Vec<char>>, row: usize, col: usize, c: char) -> bool
 /// # Returns
 ///
 /// A boolean value indicating whether the board is solved.
-///
 pub fn solve_sudoku(board: &mut Vec<Vec<char>>) -> bool {
-    let mut rows = vec![0; SIZE];
-    let mut cols = vec![0; SIZE];
-    let mut blocks = vec![0; SIZE];
+    let mut rows: [u16; SIZE] = [0; SIZE];
+    let mut cols: [u16; SIZE] = [0; SIZE];
+    let mut blocks: [u16; SIZE] = [0; SIZE];
 
+    let mut empties = Vec::new();
     for r in 0..SIZE {
         for c in 0..SIZE {
-            if board[r][c] != '.' {
-                let num = board[r][c].to_digit(10).unwrap() as usize;
-                let mask = 1 << num;
-                rows[r] |= mask;
-                cols[c] |= mask;
-                blocks[(r / SUBGRID_SIZE) * SUBGRID_SIZE + c / SUBGRID_SIZE] |= mask;
+            if board[r][c] == '.' {
+                empties.push((r, c));
+            } else {
+                let d = board[r][c].to_digit(10).expect("Invalid digit") as usize;
+                let bit = 1 << d;
+                rows[r] |= bit;
+                cols[c] |= bit;
+                blocks[(r / SUBGRID_SIZE) * SUBGRID_SIZE + c / SUBGRID_SIZE] |= bit;
             }
         }
     }
 
-    solve(board, &mut rows, &mut cols, &mut blocks, 0, 0)
+    solve_opt(board, &mut rows, &mut cols, &mut blocks, &mut empties, 0)
 }
 
 /// Solve the sudoku board using backtracking.
@@ -60,52 +67,63 @@ pub fn solve_sudoku(board: &mut Vec<Vec<char>>) -> bool {
 /// * `rows` - A mutable reference to a vector of 9 u16 integers representing the rows.
 /// * `cols` - A mutable reference to a vector of 9 u16 integers representing the columns.
 /// * `blocks` - A mutable reference to a vector of 9 u16 integers representing the 3x3 subgrids.
-/// * `row` - The current row.
-/// * `col` - The current column.
+/// * `empties` - A mutable reference to a vector of tuples representing the empty cells.
+/// * `idx` - The current index in the `empties` vector.
 ///
 /// # Returns
 ///
 /// A boolean value indicating whether the board is solved.
-///
-fn solve(
+fn solve_opt(
     board: &mut Vec<Vec<char>>,
-    rows: &mut Vec<u16>,
-    cols: &mut Vec<u16>,
-    blocks: &mut Vec<u16>,
-    row: usize,
-    col: usize,
+    rows: &mut [u16; SIZE],
+    cols: &mut [u16; SIZE],
+    blocks: &mut [u16; SIZE],
+    empties: &mut Vec<(usize, usize)>,
+    idx: usize,
 ) -> bool {
-    if row == SIZE {
+    if idx == empties.len() {
         return true;
     }
-    if col == SIZE {
-        return solve(board, rows, cols, blocks, row + 1, 0);
-    }
-    if board[row][col] != '.' {
-        return solve(board, rows, cols, blocks, row, col + 1);
-    }
 
-    for num in 1..=9 {
-        let mask = 1 << num;
-        let block_index = (row / SUBGRID_SIZE) * SUBGRID_SIZE + col / SUBGRID_SIZE;
+    let (best_i, best_mask) = empties[idx..]
+        .iter()
+        .enumerate()
+        .map(|(i, &(r, c))| {
+            let used = rows[r] | cols[c] | blocks[(r / SUBGRID_SIZE) * SUBGRID_SIZE + c / SUBGRID_SIZE];
+            let mask = (!used) & 0x3FE;
+            (i, mask)
+        })
+        .min_by_key(|&(_, mask)| mask.count_ones())
+        .unwrap();
 
-        if (rows[row] & mask) == 0 && (cols[col] & mask) == 0 && (blocks[block_index] & mask) == 0 {
-            board[row][col] = std::char::from_digit(num as u32, 10).unwrap();
-            rows[row] |= mask;
-            cols[col] |= mask;
-            blocks[block_index] |= mask;
+    empties.swap(idx, idx + best_i);
+    let (r, c) = empties[idx];
+    let b = (r / SUBGRID_SIZE) * SUBGRID_SIZE + c / SUBGRID_SIZE;
+    let mut mask = best_mask;
 
-            if solve(board, rows, cols, blocks, row, col + 1) {
-                return true;
-            }
+    while mask != 0 {
+        let bit = mask & (!mask + 1);
+        mask &= mask - 1;
+        let num = bit.trailing_zeros() as usize;
 
-            board[row][col] = '.';
-            rows[row] &= !mask;
-            cols[col] &= !mask;
-            blocks[block_index] &= !mask;
+        board[r][c] = std::char::from_digit(num as u32, 10).unwrap();
+        rows[r] |= bit;
+        cols[c] |= bit;
+        blocks[b] |= bit;
+
+        if solve_opt(board, rows, cols, blocks, empties, idx + 1) {
+            return true;
         }
+
+
+        board[r][c] = '.';
+        rows[r] &= !bit;
+        cols[c] &= !bit;
+        blocks[b] &= !bit;
     }
 
+
+    empties.swap(idx, idx + best_i);
     false
 }
 

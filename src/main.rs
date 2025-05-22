@@ -1,5 +1,4 @@
-use std::io;
-use std::io::Write;
+use std::{io, io::Write};
 
 use solve_sudoku::solve_sudoku;
 
