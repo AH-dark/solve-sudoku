@@ -104,9 +104,9 @@ fn solve_opt(
     while mask != 0 {
         let bit = mask & (!mask + 1);
         mask &= mask - 1;
-        let num = bit.trailing_zeros() as usize;
+        let num = bit.trailing_zeros();
 
-        board[r][c] = std::char::from_digit(num as u32, 10).unwrap();
+        board[r][c] = std::char::from_digit(num, 10).unwrap();
         rows[r] |= bit;
         cols[c] |= bit;
         blocks[b] |= bit;
